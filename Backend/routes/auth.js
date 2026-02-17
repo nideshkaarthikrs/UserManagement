@@ -3,23 +3,29 @@ import User from "../models/User.js"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import 'dotenv/config';
+import upload from "../middleware/upload.js";
+import verifyToken from "../middleware/auth.js";
 
 const router = express.Router()
 
-router.post('/register', async (req, res) => {
+router.post('/register', upload.single("profileFile"), async (req, res) => {
     
     let { username, firstname, lastname, password, email, mobile } = req.body
 
-    if (!username || !firstname || !lastname || !password || !email || !mobile) {
+    let file = req.file
+
+    if (!username || !firstname || !lastname || !password || !email || !mobile || !file) {
         return res.status(400).send("All fields are required")
     }
+
+    let profileFile = file.path
 
     try {
         // Hashing the password using bcrypt before storing it in DB
         let saltRounds = 10
         password = await bcrypt.hash(password, saltRounds)
-        const newUser = await User.create({ username, firstname, lastname, password, email, mobile })
-        console.log("User saved successfully:", newUser._id);
+        const newUser = await User.create({ username, firstname, lastname, password, email, mobile, profileFile })
+        // console.log("User saved successfully:", newUser._id);
         return res.status(201).send("User Created")
     }catch(error) {
         if (error.code === 11000) {
@@ -58,6 +64,17 @@ router.post('/login', async (req, res) => {
     }catch(error) {
             return res.status(500).send(`Internal Server Error`)
     }
+})
+
+router.get('/download-profile', verifyToken , async (req, res) => {
+    let user = await User.findById(req.user.userId)
+    if (!user) {
+        return res.status(404).send("User not found!")
+    }
+    if (!user.profileFile) {
+        return res.status(404).send("File not found!")
+    }
+    res.download(user.profileFile)
 })
 
 export default router

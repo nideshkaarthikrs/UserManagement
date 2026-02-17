@@ -4,6 +4,7 @@ import verifyToken from "./middleware/auth.js"
 
 //Importing routes:
 import authRoutes from './routes/auth.js'
+import User from "./models/User.js"
 
 const app = express()
 const PORT = 3001
@@ -22,9 +23,16 @@ connectDB()
 
 
 // Sample protected route
-app.get('/me', verifyToken, (req, res) => {
-    const userInfo = req.user
-    return res.json(userInfo)
+app.get('/me', verifyToken, async (req, res) => {
+    const userId = req.user.userId
+
+    const userData = await User.findById(userId).select("-password -__v")
+
+    if (!userData) {
+        return res.status(404).send("User not found")
+    }
+
+    return res.json(userData)
 })
 
 // Listening to port
